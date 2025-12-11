@@ -1,175 +1,315 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { FileText, Loader2, Printer, Search } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { collection, getDocs, query, orderBy } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useAuth } from "@/contexts/AuthContext";
+import { FileText, Plus, Calendar, Download } from "lucide-react";
+import Link from "next/link";
+import { downloadMonthlyWord, downloadMonthlyExcel } from "@/lib/download";
+
+interface Member {
+    id: string;
+    name: string;
+}
+
+interface Meeting {
+    id: string;
+    date: any;
+    attendance: { memberId: string; memberName: string; present: boolean; prayerRequest?: string }[];
+    newVisitors: { name: string; phone?: string; notes?: string }[];
+    totalAttendance: number;
+    notes?: string;
+}
 
 export default function ReportsPage() {
-    const [loading, setLoading] = useState(false);
-    const [data, setData] = useState<any>(null);
+    const { user } = useAuth();
+    const [members, setMembers] = useState<Member[]>([]);
+    const [meetings, setMeetings] = useState<Meeting[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+    const [exporting, setExporting] = useState(false);
 
-    // Default to current month
-    const today = new Date();
-    const [month, setMonth] = useState(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`);
+    const [useAiSummary, setUseAiSummary] = useState(false);
+    const [generating, setGenerating] = useState(false);
 
-    const fetchReport = async () => {
-        setLoading(true);
+    useEffect(() => {
+        if (user) {
+            fetchData();
+        }
+    }, [user]);
+
+    const fetchData = async () => {
         try {
-            // In a real app, this would be a dedicated API. 
-            // For this MVP, I'll fetch raw meetings/members and filter client side or build a specific API.
-            // Let's assume we build a specific API route for reporting to keep it clean.
-            const res = await fetch(`/api/reports?month=${month}`);
-            const json = await res.json();
-            setData(json);
-        } catch (e) {
-            console.error(e);
-            alert('產生報表失敗');
+            // Fetch members
+            const membersSnapshot = await getDocs(collection(db, "members"));
+            const membersData = membersSnapshot.docs.map((doc) => ({
+                id: doc.id,
+                ...doc.data(),
+            })) as Member[];
+            setMembers(membersData);
+
+            // Fetch meetings
+            const meetingsQuery = query(
+                collection(db, "meetings"),
+                orderBy("date", "desc")
+            );
+            const meetingsSnapshot = await getDocs(meetingsQuery);
+            const meetingsData = meetingsSnapshot.docs.map((doc) => ({
+                id: doc.id,
+                ...doc.data(),
+            })) as Meeting[];
+            setMeetings(meetingsData);
+        } catch (error) {
+            console.error("Error fetching data:", error);
         } finally {
             setLoading(false);
         }
     };
 
-    return (
-        <div className="max-w-5xl mx-auto space-y-8 pb-20 print:p-0 print:max-w-none">
-            {/* Control Bar - Hidden when printing */}
-            <div className="flex justify-between items-center print:hidden bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                <div className="flex items-center gap-4">
-                    <h1 className="text-xl font-bold">報表中心</h1>
-                    <input
-                        type="month"
-                        value={month}
-                        onChange={e => setMonth(e.target.value)}
-                        className="border border-gray-300 rounded-lg p-2"
-                    />
-                    <button
-                        onClick={fetchReport}
-                        disabled={loading}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-                    >
-                        {loading ? <Loader2 className="animate-spin w-4 h-4" /> : <Search className="w-4 h-4" />}
-                        產生報表
-                    </button>
-                </div>
-                <button
-                    onClick={() => window.print()}
-                    disabled={!data}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center gap-2 disabled:opacity-50"
+    const handleExport = async (type: "word" | "excel") => {
+        if (exporting || generating) return;
+        setExporting(true);
+        try {
+            const [year, month] = selectedMonth.split("-").map(Number);
+
+            // Filter meetings for the selected month
+            const monthlyMeetings = meetings.filter(m => {
+                if (!m.date?.toDate) return false;
+                const d = m.date.toDate();
+                return d.getFullYear() === year && (d.getMonth() + 1) === month;
+            }).sort((a, b) => a.date.toDate().getTime() - b.date.toDate().getTime());
+
+            if (monthlyMeetings.length === 0) {
+                alert("該月份無聚會記錄");
+                setExporting(false);
+                return;
+            }
+
+            let processedMembers: { id: string; name: string; summary: string }[] = members.map(m => ({ id: m.id, name: m.name, summary: "" }));
+
+            // AI Summarization
+            if (useAiSummary) {
+                setGenerating(true);
+                try {
+                    const response = await fetch("/api/summarize", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            members: members,
+                            meetings: monthlyMeetings.map(m => ({
+                                ...m,
+                                date: m.date.toDate(),
+                                attendance: m.attendance
+                            })),
+                            month: `${year}年${month}月`
+                        })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        // Map summaries back to members
+                        if (Array.isArray(data.summaries)) {
+                            // Create a map for easier lookup
+                            const summaryMap = new Map<string, string>(data.summaries.map((s: any) => [s.name, String(s.summary)]));
+                            processedMembers = processedMembers.map(m => ({
+                                id: m.id,
+                                name: m.name,
+                                summary: summaryMap.get(m.name) || ""
+                            }));
+                        }
+                    } else {
+                        console.error("AI API Error");
+                        alert("AI摘要生成失敗，將使用原始紀錄匯出。");
+                    }
+                } catch (e) {
+                    console.error("AI Generation failed", e);
+                    alert("AI摘要生成失敗，將使用原始紀錄匯出。");
+                } finally {
+                    setGenerating(false);
+                }
+            }
+
+            const reportData = {
+                year,
+                month,
+                members: processedMembers,
+                meetings: monthlyMeetings.map(m => ({
+                    date: m.date.toDate(),
+                    attendance: new Map(m.attendance.map(a => [a.memberId, { present: a.present, prayerRequest: a.prayerRequest }])),
+                    totalAttendance: m.totalAttendance || 0,
+                    newVisitors: m.newVisitors || [],
+                    notes: m.notes
+                })),
+                useAiSummary // Pass this flag to download function
+            };
+
+            if (type === "word") {
+                await downloadMonthlyWord(reportData);
+            } else {
+                downloadMonthlyExcel(reportData);
+            }
+        } catch (error) {
+            console.error("Export error:", error);
+            alert("匯出失敗");
+        } finally {
+            setExporting(false);
+        }
+    };
+
+    if (!user) {
+        return (
+            <div className="text-center py-10">
+                <h2 className="text-xl font-semibold mb-4">請先登入</h2>
+                <Link
+                    href="/login"
+                    className="inline-block bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
                 >
-                    <Printer className="w-4 h-4" />
-                    列印 / 存為 PDF
-                </button>
+                    前往登入
+                </Link>
+            </div>
+        );
+    }
+
+    if (loading) {
+        return <div className="text-center py-10">載入中...</div>;
+    }
+
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <FileText className="w-6 h-6 text-blue-600" />
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                        報表中心
+                    </h1>
+                </div>
+                <Link
+                    href="/reports/new"
+                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+                >
+                    <Plus className="w-5 h-5" />
+                    新建報表
+                </Link>
             </div>
 
-            {/* Report View */}
-            {data ? (
-                <div className="bg-white p-8 shadow-lg min-h-screen print:shadow-none print:p-0">
-                    <div className="text-center mb-8 border-b-2 border-gray-800 pb-4">
-                        <h1 className="text-3xl font-serif font-bold text-gray-900 mb-2">教會小組月報表</h1>
-                        <p className="text-lg text-gray-600">{data.year} 年 {data.month} 月</p>
-                        <div className="flex justify-center gap-8 mt-4 text-sm font-medium">
-                            <span>填表人：{data.reporter || '小組長'}</span>
-                            <span>列印日期：{new Date().toLocaleDateString()}</span>
+            {/* Monthly Export Section */}
+            <div className="bg-white rounded-lg shadow p-6 dark:bg-gray-800">
+                <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-green-600" />
+                    月報表匯出
+                </h2>
+                <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
+                    <div className="flex items-center gap-3">
+                        <label className="text-sm text-gray-600 dark:text-gray-400">選擇月份:</label>
+                        <input
+                            type="month"
+                            value={selectedMonth}
+                            onChange={(e) => setSelectedMonth(e.target.value)}
+                            className="p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        />
+                    </div>
+
+                    <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/30 rounded border border-blue-100 dark:border-blue-800">
+                        <input
+                            type="checkbox"
+                            id="useAiSummary"
+                            checked={useAiSummary}
+                            onChange={(e) => setUseAiSummary(e.target.checked)}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <div className="flex flex-col">
+                            <label htmlFor="useAiSummary" className="text-sm font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                                使用 AI 智慧摘要
+                                <span className="bg-gradient-to-r from-blue-500 to-purple-500 text-white text-[10px] px-2 py-0.5 rounded-full">Beta (Gemini)</span>
+                            </label>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">自動整合並潤飾每位組員的月度代禱事項</span>
                         </div>
                     </div>
-
-                    {/* Section 1: Meeting Stats */}
-                    <div className="mb-8">
-                        <h2 className="text-xl font-bold border-l-4 border-blue-600 pl-3 mb-4">一、聚會記錄</h2>
-                        <table className="w-full border-collapse border border-gray-300 text-sm">
-                            <thead>
-                                <tr className="bg-gray-100">
-                                    <th className="border border-gray-300 p-2 text-left">日期</th>
-                                    <th className="border border-gray-300 p-2 text-left">主題</th>
-                                    <th className="border border-gray-300 p-2 text-center">出席人數</th>
-                                    <th className="border border-gray-300 p-2 text-right">奉獻金額</th>
-                                    <th className="border border-gray-300 p-2 text-left w-1/3">重點/備註</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {data.meetings.map((m: any) => (
-                                    <tr key={m.id}>
-                                        <td className="border border-gray-300 p-2">{m.date.slice(5)}</td>
-                                        <td className="border border-gray-300 p-2">{m.topic}</td>
-                                        <td className="border border-gray-300 p-2 text-center">{m.attendanceCount}</td>
-                                        <td className="border border-gray-300 p-2 text-right">{m.offering_amount}</td>
-                                        <td className="border border-gray-300 p-2 text-gray-600">{m.summary}</td>
-                                    </tr>
-                                ))}
-                                <tr className="font-bold bg-gray-50">
-                                    <td colSpan={2} className="border border-gray-300 p-2 text-right">總計 / 平均</td>
-                                    <td className="border border-gray-300 p-2 text-center">{data.stats.avgAttendance}</td>
-                                    <td className="border border-gray-300 p-2 text-right">{data.stats.totalOffering}</td>
-                                    <td className="border border-gray-300 p-2"></td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => handleExport("word")}
+                            disabled={exporting || generating}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                        >
+                            {generating ? (
+                                <>
+                                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                    AI 生成中...
+                                </>
+                            ) : (
+                                <>
+                                    <Download className="w-4 h-4" />
+                                    匯出 Word
+                                </>
+                            )}
+                        </button>
+                        <button
+                            onClick={() => handleExport("excel")}
+                            disabled={exporting || generating}
+                            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50"
+                        >
+                            <Download className="w-4 h-4" />
+                            匯出 Excel
+                        </button>
                     </div>
-
-                    {/* Section 2: Member Attendance Grid */}
-                    <div className="mb-8 break-inside-avoid">
-                        <h2 className="text-xl font-bold border-l-4 border-green-600 pl-3 mb-4">二、組員出席狀況</h2>
-                        <div className="overflow-x-auto">
-                            <table className="w-full border-collapse border border-gray-300 text-sm">
-                                <thead>
-                                    <tr className="bg-gray-100">
-                                        <th className="border border-gray-300 p-2 text-left min-w-[100px]">姓名</th>
-                                        <th className="border border-gray-300 p-2 text-center w-20">狀態</th>
-                                        {data.meetings.map((m: any) => (
-                                            <th key={m.id} className="border border-gray-300 p-2 text-center w-16 text-xs">
-                                                {m.date.slice(5)}
-                                            </th>
-                                        ))}
-                                        <th className="border border-gray-300 p-2 text-left">備註 (關懷狀況)</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {data.members.map((member: any) => (
-                                        <tr key={member.id}>
-                                            <td className="border border-gray-300 p-2 font-medium">{member.name}</td>
-                                            <td className="border border-gray-300 p-2 text-center text-xs text-gray-500">{member.status}</td>
-                                            {data.meetings.map((m: any) => {
-                                                const status = member.attendance[m.id] || '-';
-                                                return (
-                                                    <td key={m.id} className={`border border-gray-300 p-2 text-center ${status === '缺席' ? 'text-red-500 font-bold' : ''}`}>
-                                                        {status === '出席' ? 'O' : status === '缺席' ? 'X' : status === '遲到' ? 'L' : '-'}
-                                                    </td>
-                                                );
-                                            })}
-                                            <td className="border border-gray-300 p-2 text-gray-500 text-xs">
-                                                {/* Show latest note or summary */}
-                                                {member.recentLog}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                        <div className="mt-2 text-xs text-gray-500 text-right">
-                            圖例： O=出席, X=缺席, L=遲到, -=無紀錄
-                        </div>
-                    </div>
-
-                    {/* Section 3: Prayer / Special Notes */}
-                    <div className="break-inside-avoid">
-                        <h2 className="text-xl font-bold border-l-4 border-amber-600 pl-3 mb-4">三、特殊事項與代禱</h2>
-                        <div className="border border-gray-300 rounded-lg p-4 min-h-[150px]">
-                            <p className="text-gray-500 italic">請手寫補充或在系統中新增 general notes...</p>
-                        </div>
-                    </div>
-
-                    {/* Footer */}
-                    <div className="mt-12 pt-8 border-t border-gray-200 flex justify-between text-sm text-gray-500">
-                        <span>小組名稱：信帆小組</span>
-                        <span>牧區：_____________</span>
-                        <span>區長簽名：_____________</span>
-                    </div>
-
                 </div>
-            ) : (
-                <div className="text-center py-20 text-gray-500 bg-white rounded-xl border border-gray-100">
-                    <FileText className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                    <p className="text-lg">請選擇月份並點擊「產生報表」查看預覽</p>
+                <p className="text-sm text-gray-500 mt-3">
+                    匯出包含整月出席記錄與代禱事項的整合報表
+                </p>
+            </div>
+
+            {/* Recent Meetings Summary */}
+            <div className="bg-white rounded-lg shadow dark:bg-gray-800">
+                <div className="p-4 border-b dark:border-gray-700">
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                        近期聚會記錄 ({meetings.length})
+                    </h2>
                 </div>
-            )}
+                <div className="divide-y dark:divide-gray-700">
+                    {meetings.slice(0, 10).map((meeting) => {
+                        const date = meeting.date?.toDate?.();
+                        const dateStr = date
+                            ? date.toLocaleDateString("zh-TW", {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                            })
+                            : "N/A";
+                        return (
+                            <div
+                                key={meeting.id}
+                                className="p-4 flex justify-between items-center"
+                            >
+                                <div>
+                                    <div className="font-medium text-gray-900 dark:text-white">
+                                        {dateStr}
+                                    </div>
+                                    <div className="text-sm text-gray-500">
+                                        出席: {meeting.totalAttendance} 人
+                                        {meeting.newVisitors?.length > 0 && (
+                                            <span className="ml-2 text-green-600">
+                                                + {meeting.newVisitors.length} 新朋友
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                                <Link
+                                    href={`/attendance/${meeting.id}`}
+                                    className="text-blue-600 hover:underline text-sm"
+                                >
+                                    查看詳情
+                                </Link>
+                            </div>
+                        );
+                    })}
+                    {meetings.length === 0 && (
+                        <div className="p-6 text-center text-gray-500">
+                            尚無聚會記錄
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }

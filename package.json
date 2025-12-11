@@ -9,14 +9,15 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@types/markdown-it": "14.1.2",
+    "acorn": "8.15.0",
     "clsx": "^2.1.1",
     "docx": "^9.5.1",
     "file-saver": "^2.0.5",
     "firebase": "^12.6.0",
     "lucide-react": "^0.556.0",
     "mammoth": "^1.11.0",
-    "acorn": "8.15.0",
-    "@types/markdown-it": "14.1.2",
     "next": "16.0.7",
     "react": "19.2.0",
     "react-dom": "19.2.0",
