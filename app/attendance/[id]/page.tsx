@@ -13,7 +13,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
-import { Calendar, Check, X, UserPlus, Save, ArrowLeft } from "lucide-react";
+import { Calendar, Check, X, UserPlus, Save, ArrowLeft, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 
@@ -49,6 +49,12 @@ export default function EditMeetingPage() {
     const [notes, setNotes] = useState("");
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+
+    // 特殊聚會狀態
+    const [isSpecialMeeting, setIsSpecialMeeting] = useState(false);
+    const [meetingType, setMeetingType] = useState<"normal" | "holiday" | "special">("normal");
+    const [skipReason, setSkipReason] = useState("");
+    const [customReason, setCustomReason] = useState("");
 
     useEffect(() => {
         if (user) {
@@ -87,6 +93,19 @@ export default function EditMeetingPage() {
             );
             setNotes(meetingData.notes || "");
             setNewVisitors(meetingData.newVisitors || []);
+
+            // Load special meeting state
+            if (meetingData.type && meetingData.type !== "normal") {
+                setIsSpecialMeeting(true);
+                setMeetingType(meetingData.type);
+                const reason = meetingData.skipReason || "";
+                if (["區聚", "聚餐", "連假放假", "戶外活動"].includes(reason)) {
+                    setSkipReason(reason);
+                } else if (reason) {
+                    setSkipReason("自訂");
+                    setCustomReason(reason);
+                }
+            }
 
             // 4. Merge existing attendance with current member list
             // This ensures if new members were added to the group since the meeting, they appear unchecked.
@@ -195,10 +214,12 @@ export default function EditMeetingPage() {
 
             await updateDoc(doc(db, "meetings", meetingId), {
                 date: dateObj,
-                attendance: sanitizedAttendance,
-                newVisitors: sanitizedVisitors,
-                totalAttendance,
+                attendance: isSpecialMeeting ? [] : sanitizedAttendance,
+                newVisitors: isSpecialMeeting ? [] : sanitizedVisitors,
+                totalAttendance: isSpecialMeeting ? 0 : totalAttendance,
                 notes,
+                type: isSpecialMeeting ? meetingType : "normal",
+                skipReason: isSpecialMeeting ? (skipReason === "自訂" ? customReason : skipReason) : null,
                 updatedAt: serverTimestamp(),
             });
 
@@ -251,6 +272,82 @@ export default function EditMeetingPage() {
                     onChange={(e) => setMeetingDate(e.target.value)}
                     className="w-full p-3 border rounded-lg text-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 />
+            </div>
+
+            {/* Special Meeting Toggle */}
+            <div className="bg-white rounded-lg shadow p-4 dark:bg-gray-800">
+                <div className="flex items-center justify-between mb-3">
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        <AlertCircle className="w-4 h-4 text-amber-500" />
+                        本週為特殊狀況（不計出席）
+                    </label>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setIsSpecialMeeting(!isSpecialMeeting);
+                            if (!isSpecialMeeting) {
+                                setMeetingType("special");
+                            } else {
+                                setMeetingType("normal");
+                                setSkipReason("");
+                                setCustomReason("");
+                            }
+                        }}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isSpecialMeeting ? "bg-amber-500" : "bg-gray-300 dark:bg-gray-600"
+                            }`}
+                    >
+                        <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isSpecialMeeting ? "translate-x-6" : "translate-x-1"
+                                }`}
+                        />
+                    </button>
+                </div>
+
+                {isSpecialMeeting && (
+                    <div className="space-y-3 pt-3 border-t dark:border-gray-700">
+                        <div>
+                            <label className="block text-sm text-gray-600 dark:text-gray-400 mb-2">
+                                選擇原因
+                            </label>
+                            <div className="flex flex-wrap gap-2">
+                                {["區聚", "聚餐", "連假放假", "戶外活動", "自訂"].map((reason) => (
+                                    <button
+                                        key={reason}
+                                        type="button"
+                                        onClick={() => {
+                                            setSkipReason(reason);
+                                            if (reason === "連假放假") {
+                                                setMeetingType("holiday");
+                                            } else {
+                                                setMeetingType("special");
+                                            }
+                                        }}
+                                        className={`px-3 py-1.5 rounded-full text-sm transition ${skipReason === reason
+                                                ? "bg-amber-500 text-white"
+                                                : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                                            }`}
+                                    >
+                                        {reason}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {skipReason === "自訂" && (
+                            <input
+                                type="text"
+                                placeholder="請輸入原因..."
+                                value={customReason}
+                                onChange={(e) => setCustomReason(e.target.value)}
+                                className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            />
+                        )}
+
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                            ⚠️ 標記為特殊狀況後，本週將不計入出席統計，月報表會顯示原因而非出席數
+                        </p>
+                    </div>
+                )}
             </div>
 
             {/* Members Attendance */}

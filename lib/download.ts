@@ -166,6 +166,8 @@ interface MonthlyMeetingData {
     totalAttendance: number;
     newVisitors: NewVisitor[];
     notes?: string;
+    type?: "normal" | "holiday" | "special";
+    skipReason?: string;
 }
 
 interface MonthlyReportData {
@@ -180,12 +182,13 @@ export const downloadMonthlyWord = async (data: MonthlyReportData) => {
     const title = `${data.year} 信帆小組報表`;
 
 
-    // Calculate attendance count per member
+    // Calculate attendance count per member (excluding special meetings)
     const memberAttendanceCounts = new Map<string, number>();
+    const normalMeetingsCount = data.meetings.filter(m => m.type !== "holiday" && m.type !== "special").length;
     data.members.forEach(member => {
         let count = 0;
         data.meetings.forEach(m => {
-            if (m.attendance.get(member.id)?.present) count++;
+            if (m.type !== "holiday" && m.type !== "special" && m.attendance.get(member.id)?.present) count++;
         });
         memberAttendanceCounts.set(member.id, count);
     });
@@ -238,14 +241,18 @@ export const downloadMonthlyWord = async (data: MonthlyReportData) => {
         });
     });
 
-    // Weekly attendance totals row
-    const weeklyTotals = data.meetings.map(m => m.totalAttendance || 0);
+    // Weekly attendance totals row - show skipReason for special meetings
     const totalRow = new TableRow({
         children: [
             new TableCell({ children: [text12pt("當週出席人數", true)] }),
-            ...weeklyTotals.map(t => new TableCell({
-                children: [text12ptCenter(t.toString())]
-            })),
+            ...data.meetings.map(m => {
+                const isSpecial = m.type === "holiday" || m.type === "special";
+                const displayText = isSpecial ? (m.skipReason || "停聚") : (m.totalAttendance || 0).toString();
+                return new TableCell({
+                    children: [text12ptCenter(displayText)],
+                    shading: isSpecial ? { fill: "FFF3CD" } : undefined  // Light yellow for special
+                });
+            }),
             new TableCell({ children: [new Paragraph("")] }),
         ],
     });

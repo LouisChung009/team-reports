@@ -20,6 +20,8 @@ interface Meeting {
     newVisitors: { name: string; phone?: string; notes?: string }[];
     totalAttendance: number;
     notes?: string;
+    type?: "normal" | "holiday" | "special";
+    skipReason?: string;
 }
 
 export default function ReportsPage() {
@@ -140,7 +142,9 @@ export default function ReportsPage() {
                     attendance: new Map(m.attendance.map(a => [a.memberId, { present: a.present, prayerRequest: a.prayerRequest }])),
                     totalAttendance: m.totalAttendance || 0,
                     newVisitors: m.newVisitors || [],
-                    notes: m.notes
+                    notes: m.notes,
+                    type: m.type,
+                    skipReason: m.skipReason
                 })),
                 useAiSummary // Pass this flag to download function
             };

@@ -34,6 +34,7 @@ export interface WeeklyMeeting {
     totalAttendance: number;
     notes?: string;
     type?: "normal" | "holiday" | "special";
+    skipReason?: string; // 當 type 不是 normal 時的原因說明
     createdBy: string;
     createdAt: Date;
 }
