@@ -20,6 +20,7 @@ export default function SpeechTextarea({
 
     useEffect(() => {
         if (typeof window !== "undefined") {
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-ignore
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (SpeechRecognition) {
@@ -37,39 +38,23 @@ export default function SpeechTextarea({
                     setIsListening(false);
                 };
 
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 recognition.onresult = (event: any) => {
                     const transcript = event.results[0][0].transcript;
-                    if (onChange) {
-                        // Create a synthetic event to trigger onChange
-                        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-                            window.HTMLTextAreaElement.prototype,
-                            "value"
-                        )?.set;
 
-                        // If we have a ref to the textarea (we don't here directly without forwardRef),
-                        // but we can trust the parent passed value and onChange.
-                        // Best way is to append to current value or replace? 
-                        // Usually voice input appends if there is space, or replaces.
-                        // Let's prompt user or just append. 
-                        // For simplicity, let's append if there's text, or set if empty.
+                    const currentValue = String(value || "");
+                    const newValue = currentValue ? `${currentValue} ${transcript}` : transcript;
 
-                        const currentValue = String(value || "");
-                        const newValue = currentValue ? `${currentValue} ${transcript}` : transcript;
-
-                        // Call the custom onSpeechInput if provided, otherwise try to simulate onChange
-                        if (onSpeechInput) {
-                            onSpeechInput(newValue);
-                        } else {
-                            // Fallback if parent only passed onChange but we can't easily synthesize a React event without the DOM node
-                            // We will assume onSpeechInput is passed or we'll handle it in the parent
-                        }
+                    if (onSpeechInput) {
+                        onSpeechInput(newValue);
                     }
                 };
 
                 recognitionRef.current = recognition;
             }
         }
-    }, [value, onChange, onSpeechInput]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Only init once
 
     const toggleListening = (e: React.MouseEvent) => {
         e.preventDefault();
@@ -94,8 +79,8 @@ export default function SpeechTextarea({
                     type="button"
                     onClick={toggleListening}
                     className={`absolute right-2 bottom-2 p-1.5 rounded-full transition-colors ${isListening
-                            ? "bg-red-100 text-red-600 animate-pulse"
-                            : "bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400"
+                        ? "bg-red-100 text-red-600 animate-pulse"
+                        : "bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400"
                         }`}
                     title="語音輸入"
                 >

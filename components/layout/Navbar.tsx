@@ -41,13 +41,13 @@ export function Navbar() {
                         </div>
                     </div>
                     <div className="hidden sm:ml-6 sm:flex sm:items-center">
-                        <button
-                            type="button"
+                        <Link
+                            href="/profile"
                             className="bg-white p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-gray-900 dark:text-gray-300 dark:hover:text-white"
                         >
                             <span className="sr-only">View profile</span>
                             <User className="h-6 w-6" />
-                        </button>
+                        </Link>
                     </div>
                     <div className="-mr-2 flex items-center sm:hidden">
                         <button

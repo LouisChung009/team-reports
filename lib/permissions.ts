@@ -11,23 +11,21 @@ export type Permission = typeof DASHBOARD_PERMISSIONS[keyof typeof DASHBOARD_PER
 // 在這裡設定每位牧者/使用者的權限
 // 格式: "email": ["權限1", "權限2", ...]
 // 使用 "ALL" 可賦予所有權限
+// 牧者通用權限 (不包含 VIEW_MONTHLY_REPORT)
+const PASTOR_PERMISSIONS: Permission[] = [
+    DASHBOARD_PERMISSIONS.VIEW_QUICK_STATS,
+    DASHBOARD_PERMISSIONS.VIEW_ATTENDANCE_CHART,
+    DASHBOARD_PERMISSIONS.VIEW_MEMBER_STATS,
+    DASHBOARD_PERMISSIONS.VIEW_CARE_LIST
+];
+
 const USER_CONFIG: Record<string, (Permission | "ALL")[]> = {
-    // 範例：給予超級管理員所有權限 (請替換為您的 Email)
-    "admin@example.com": ["ALL"],
+    // 管理員/組長 (預設全開，或在此指定)
+    // "admin@example.com": ["ALL"],
 
-    // 範例：這是您的 Email (根據我所知)，暫時給予所有權限方便測試
-    "louischung009@example.com": ["ALL"], // 請確認您的登入 Email
-
-    // 範例：牧者A 只能看快速統計和關懷名單
-    "pastor.a@example.com": [
-        DASHBOARD_PERMISSIONS.VIEW_QUICK_STATS,
-        DASHBOARD_PERMISSIONS.VIEW_CARE_LIST
-    ],
-
-    // 範例：牧者B 只能看報表下載
-    "pastor.b@example.com": [
-        DASHBOARD_PERMISSIONS.VIEW_MONTHLY_REPORT
-    ]
+    // 牧者：只能看儀表板數據，不包含報表匯出
+    "shellyweng@hotmail.com": PASTOR_PERMISSIONS,
+    "tajung.kao@msa.hinet.net": PASTOR_PERMISSIONS,
 };
 
 // 預設權限 (當 Email 不在清單中時)

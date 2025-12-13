@@ -1,0 +1,4 @@
+**/scripts/**
+tmp-parse.js
+*.mjs
+*.js

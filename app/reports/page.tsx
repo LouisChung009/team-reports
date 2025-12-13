@@ -119,12 +119,13 @@ export default function ReportsPage() {
                             }));
                         }
                     } else {
-                        console.error("AI API Error");
-                        alert("AI摘要生成失敗，將使用原始紀錄匯出。");
+                        const errorData = await response.json().catch(() => ({}));
+                        console.error("AI API Error:", errorData);
+                        alert(`AI摘要生成失敗 (${response.status}): ${errorData.details || errorData.error || "未知錯誤"}，將使用原始紀錄匯出。`);
                     }
-                } catch (e) {
+                } catch (e: any) {
                     console.error("AI Generation failed", e);
-                    alert("AI摘要生成失敗，將使用原始紀錄匯出。");
+                    alert(`AI摘要生成失敗: ${e.message || e}，將使用原始紀錄匯出。`);
                 } finally {
                     setGenerating(false);
                 }

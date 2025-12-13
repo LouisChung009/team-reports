@@ -178,7 +178,7 @@ interface MonthlyReportData {
 
 export const downloadMonthlyWord = async (data: MonthlyReportData) => {
     const title = `${data.year} 信帆小組報表`;
-    const monthDays = data.meetings.map(m => m.date.getDate());
+
 
     // Calculate attendance count per member
     const memberAttendanceCounts = new Map<string, number>();
@@ -411,7 +411,7 @@ export const downloadMonthlyExcel = (data: MonthlyReportData) => {
 
     // 2. Member Status Sheet (Consolidated Notes)
     const statusHeaders = ["編號", "姓名", "近況與代禱事項"];
-    const statusRows: any[][] = [];
+    const statusRows: (string | number)[][] = [];
 
     data.members.forEach((member, idx) => {
         let content = "";
