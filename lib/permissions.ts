@@ -6,7 +6,16 @@ export const DASHBOARD_PERMISSIONS = {
     VIEW_CARE_LIST: 'dashboard:care_list',
 } as const;
 
-export type Permission = typeof DASHBOARD_PERMISSIONS[keyof typeof DASHBOARD_PERMISSIONS];
+export const PAGE_PERMISSIONS = {
+    ACCESS_MEMBERS: 'page:members',
+    ACCESS_ATTENDANCE: 'page:attendance',
+    ACCESS_REPORTS: 'page:reports',
+    ACCESS_IMPORT: 'page:import',
+} as const;
+
+export type Permission =
+    | typeof DASHBOARD_PERMISSIONS[keyof typeof DASHBOARD_PERMISSIONS]
+    | typeof PAGE_PERMISSIONS[keyof typeof PAGE_PERMISSIONS];
 
 // 在這裡設定每位牧者/使用者的權限
 // 格式: "email": ["權限1", "權限2", ...]

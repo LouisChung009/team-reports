@@ -4,16 +4,26 @@ import Link from "next/link";
 import { useState } from "react";
 import { Menu, X, FileText, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { checkPermission, PAGE_PERMISSIONS } from "@/lib/permissions";
 
 export function Navbar() {
+    const { user } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
 
-    const navItems = [
-        { name: "儀表板", href: "/dashboard" },
-        { name: "出席記錄", href: "/attendance" },
-        { name: "成員管理", href: "/members" },
-        { name: "報表列表", href: "/reports" },
+    // Define nav items with their required permissions
+    const allNavItems = [
+        { name: "儀表板", href: "/dashboard", permission: null }, // Dashboard is always visible
+        { name: "出席記錄", href: "/attendance", permission: PAGE_PERMISSIONS.ACCESS_ATTENDANCE },
+        { name: "成員管理", href: "/members", permission: PAGE_PERMISSIONS.ACCESS_MEMBERS },
+        { name: "報表列表", href: "/reports", permission: PAGE_PERMISSIONS.ACCESS_REPORTS },
     ];
+
+    // Filter nav items based on user's permissions
+    const navItems = allNavItems.filter(item => {
+        if (!item.permission) return true; // No permission required
+        return checkPermission(user?.email, item.permission);
+    });
 
     return (
         <nav className="bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-800">
