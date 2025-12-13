@@ -33,7 +33,6 @@
     "eslint": "^9",
     "eslint-config-next": "16.0.7",
     "jsdom": "^27.3.0",
-    "lightningcss-win32-x64-msvc": "^1.30.2",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
