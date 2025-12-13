@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# firebase
+.firebase
+
+# cross-platform lock file (each platform generates its own)
+package-lock.json

@@ -51,14 +51,46 @@
 
 ---
 
-## 部署注意事項
+## 部署指南
+
+### 自動部署 (推薦)
+
+本專案已設定 **GitHub Actions** 自動部署。當程式碼推送到 `main` 分支時，會自動建置並部署到 Firebase Hosting。
+
+**部署流程：**
+1. 在本地完成開發與測試
+2. 提交變更並推送到 GitHub：
+   ```bash
+   git add .
+   git commit -m "your commit message"
+   git push origin main
+   ```
+3. GitHub Actions 會自動執行建置與部署
+4. 約 2-3 分鐘後，更新會出現在 `team-reports-15602.web.app`
+
+### 跨平台開發說明
+
+> [!NOTE]
+> 本專案支援在 Windows 和 macOS 之間切換開發。
+> `package-lock.json` 已加入 `.gitignore`，避免跨平台套件衝突。
+> 每個平台會在 `npm install` 時產生各自的 lock 檔案。
+
+**換機器開發時：**
+```bash
+cd /Volumes/資料區/報表/group-manager  # 或 Windows 對應路徑
+npm install
+npm run dev
+```
+
+### 環境變數設定
 
 > [!IMPORTANT]
 > **需要設定環境變數**
 > 目前 `GEMINI_API_KEY` 為了方便測試暫時寫在程式碼中。
-> 在部署到 Vercel/正式環境前，請務必：
-> 1. 將 `GEMINI_API_KEY` 加入 Vercel 的 Project Settings > Environment Variables。
-> 2. (選用) 移除 `app/api/summarize/route.ts` 第 6 行的硬編碼金鑰，強制使用環境變數以策安全。
+> 在正式環境中，請將金鑰設定在 GitHub Secrets：
+> 1. 前往 GitHub Repo → Settings → Secrets and variables → Actions
+> 2. 新增 `GEMINI_API_KEY` 環境變數
+> 3. (選用) 移除 `app/api/summarize/route.ts` 第 5 行的硬編碼金鑰
 
 ---
 

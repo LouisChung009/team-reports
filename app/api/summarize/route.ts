@@ -51,7 +51,7 @@ ${JSON.stringify(memberNotes, null, 2)}
         `;
 
         // Use the stable model version
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${API_KEY}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${API_KEY}`;
 
         const aiResponse = await fetch(url, {
             method: "POST",
