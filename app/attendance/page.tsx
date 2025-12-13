@@ -146,7 +146,7 @@ export default function AttendancePage() {
                 totalAttendance: isSpecialMeeting ? 0 : totalAttendance,
                 notes,
                 type: isSpecialMeeting ? meetingType : "normal",
-                skipReason: isSpecialMeeting ? (skipReason === "自訂" ? customReason : skipReason) : undefined,
+                skipReason: isSpecialMeeting ? (skipReason === "自訂" ? customReason : skipReason) : null,
                 createdBy: user.uid,
                 createdAt: serverTimestamp(),
             });
