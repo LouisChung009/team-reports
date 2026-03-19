@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, limit, doc, updateDoc, getDoc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -14,6 +14,11 @@ import {
     FileText,
     FileDown,
     FileSpreadsheet,
+    Circle,
+    CheckCircle2,
+    ChevronDown,
+    ChevronUp,
+    RotateCcw,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -45,7 +50,15 @@ interface Member {
 interface Meeting {
     id: string;
     date: any;
-    attendance: { memberId: string; memberName: string; present: boolean; prayerRequest?: string; careNote?: string }[];
+    attendance: {
+        memberId: string;
+        memberName: string;
+        present: boolean;
+        prayerRequest?: string;
+        careNote?: string;
+        careCompletedAt?: any;
+        careCompletedBy?: string;
+    }[];
     newVisitors: { name: string; phone?: string; notes?: string }[];
     totalAttendance: number;
     notes?: string;
@@ -67,6 +80,8 @@ export default function DashboardPage() {
     const [meetings, setMeetings] = useState<Meeting[]>([]);
     const [stats, setStats] = useState<AttendanceStats[]>([]);
     const [loading, setLoading] = useState(true);
+    const [completingItems, setCompletingItems] = useState<Set<string>>(new Set());
+    const [showCompletedCare, setShowCompletedCare] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -234,6 +249,88 @@ export default function DashboardPage() {
         }
     };
 
+    const handleCompleteCare = async (meetingId: string, memberId: string) => {
+        const key = `${meetingId}-${memberId}`;
+        // Start completing animation
+        setCompletingItems((prev) => new Set(prev).add(key));
+
+        const now = new Date();
+        // Optimistic update after short delay (lets animation play)
+        setTimeout(() => {
+            setMeetings((prev) =>
+                prev.map((m) => {
+                    if (m.id !== meetingId) return m;
+                    return {
+                        ...m,
+                        attendance: m.attendance.map((a) => {
+                            if (a.memberId !== memberId) return a;
+                            return {
+                                ...a,
+                                careCompletedAt: { toDate: () => now },
+                                careCompletedBy: user?.email ?? undefined,
+                            };
+                        }),
+                    };
+                })
+            );
+            setCompletingItems((prev) => {
+                const next = new Set(prev);
+                next.delete(key);
+                return next;
+            });
+        }, 350);
+
+        // Persist to Firestore
+        try {
+            const meetingRef = doc(db, "meetings", meetingId);
+            const meetingDoc = await getDoc(meetingRef);
+            const data = meetingDoc.data();
+            const updatedAttendance = (data?.attendance ?? []).map((a: any) =>
+                a.memberId === memberId
+                    ? { ...a, careCompletedAt: Timestamp.now(), careCompletedBy: user?.email }
+                    : a
+            );
+            await updateDoc(meetingRef, { attendance: updatedAttendance });
+        } catch (error) {
+            console.error("Error completing care:", error);
+            fetchData();
+        }
+    };
+
+    const handleUncompleteCare = async (meetingId: string, memberId: string) => {
+        // Optimistic update
+        setMeetings((prev) =>
+            prev.map((m) => {
+                if (m.id !== meetingId) return m;
+                return {
+                    ...m,
+                    attendance: m.attendance.map((a) => {
+                        if (a.memberId !== memberId) return a;
+                        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                        const { careCompletedAt: _at, careCompletedBy: _by, ...rest } = a;
+                        return rest as typeof a;
+                    }),
+                };
+            })
+        );
+
+        // Persist to Firestore
+        try {
+            const meetingRef = doc(db, "meetings", meetingId);
+            const meetingDoc = await getDoc(meetingRef);
+            const data = meetingDoc.data();
+            const updatedAttendance = (data?.attendance ?? []).map((a: any) => {
+                if (a.memberId !== memberId) return a;
+                const { careCompletedAt, careCompletedBy, ...rest } = a;
+                return rest;
+            });
+            await updateDoc(meetingRef, { attendance: updatedAttendance });
+        } catch (error) {
+            console.error("Error uncompleting care:", error);
+            fetchData();
+        }
+    };
+
     // Prepare chart data
     const chartData = [...meetings]
         .reverse()
@@ -248,30 +345,49 @@ export default function DashboardPage() {
         }));
 
     // Get members needing care: only那些填了「需關懷」(careNote) 的紀錄
-    const needsCare = stats
+    const careItems = stats
         .map((stat) => {
-            const member = members.find((m) => m.id === stat.memberId);
-
             // 找出最近一次填寫 careNote 的聚會
             const latestCare = meetings
                 .map((m) => {
                     const record = m.attendance?.find((a) => a.memberId === stat.memberId);
                     if (record?.careNote) {
-                        return { date: m.date, careNote: record.careNote };
+                        return {
+                            meetingId: m.id,
+                            date: m.date,
+                            careNote: record.careNote,
+                            careCompletedAt: record.careCompletedAt,
+                            careCompletedBy: record.careCompletedBy,
+                        };
                     }
                     return null;
                 })
                 .filter(Boolean)
                 .sort((a: any, b: any) => (b?.date?.toDate?.()?.getTime?.() ?? 0) - (a?.date?.toDate?.()?.getTime?.() ?? 0))[0] as any;
 
+            if (!latestCare) return null;
+
             return {
                 ...stat,
-                careNote: latestCare?.careNote,
-                careDate: latestCare?.date,
-                needsCare: !!latestCare?.careNote,
+                meetingId: latestCare.meetingId,
+                careNote: latestCare.careNote,
+                careDate: latestCare.date,
+                careCompletedAt: latestCare.careCompletedAt,
+                careCompletedBy: latestCare.careCompletedBy,
+                isCompleted: !!latestCare.careCompletedAt,
             };
         })
-        .filter((s) => s.needsCare);
+        .filter(Boolean) as NonNullable<ReturnType<typeof stats.map>[number]>[];
+
+    const activeCareList = careItems.filter((s: any) => !s.isCompleted);
+    const completedCareList = careItems
+        .filter((s: any) => s.isCompleted)
+        .sort((a: any, b: any) =>
+            (b?.careCompletedAt?.toDate?.()?.getTime?.() ?? 0) -
+            (a?.careCompletedAt?.toDate?.()?.getTime?.() ?? 0)
+        );
+    // Keep backward-compat alias for quick stats count
+    const needsCare = activeCareList;
 
     // Average attendance
     const avgAttendance =
@@ -468,49 +584,133 @@ export default function DashboardPage() {
                         </h2>
                     </div>
                     <div className="divide-y dark:divide-gray-700">
-                        {needsCare.length > 0 ? (
-                            needsCare.map((member) => (
-                                <div
-                                    key={member.memberId}
-                                    className="p-4 flex flex-col gap-3"
-                                >
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <div className="font-medium text-gray-900 dark:text-white text-lg">
-                                                {member.memberName}
-                                            </div>
-                                            <div className="text-sm text-gray-500">
-                                                出席率: {member.attendanceRate}%
-                                            </div>
-                                        </div>
-                                        <div className="flex flex-col gap-1 items-end">
-                                            <span className="inline-block px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs dark:bg-purple-900 dark:text-purple-200">
-                                                需特別關懷
-                                            </span>
-                                        </div>
-                                    </div>
+                        {activeCareList.length > 0 ? (
+                            (activeCareList as any[]).map((member) => {
+                                const key = `${member.meetingId}-${member.memberId}`;
+                                const isCompleting = completingItems.has(key);
+                                return (
+                                    <div
+                                        key={member.memberId}
+                                        className={`p-4 flex gap-3 transition-all duration-300 ${isCompleting ? "opacity-0 scale-95" : "opacity-100 scale-100"}`}
+                                    >
+                                        {/* Checkbox */}
+                                        <button
+                                            onClick={() => handleCompleteCare(member.meetingId, member.memberId)}
+                                            className="mt-1 shrink-0 text-gray-300 hover:text-green-500 transition-colors"
+                                            title="標記為已關懷"
+                                        >
+                                            <Circle className="w-6 h-6" />
+                                        </button>
 
-                                    {/* Details Section */}
-                                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded p-3 space-y-2 text-sm">
-                                        {member.careNote && (
-                                            <div className="flex gap-2">
-                                                <Heart className="w-4 h-4 text-pink-500 shrink-0 mt-0.5" />
-                                                <span className="text-gray-700 dark:text-gray-300">
-                                                    {member.careDate?.toDate
-                                                        ? `${formatDate(member.careDate)}：${member.careNote}`
-                                                        : member.careNote}
+                                        {/* Content */}
+                                        <div className="flex-1 flex flex-col gap-3">
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <div className="font-medium text-gray-900 dark:text-white text-lg">
+                                                        {member.memberName}
+                                                    </div>
+                                                    <div className="text-sm text-gray-500">
+                                                        出席率: {member.attendanceRate}%
+                                                    </div>
+                                                </div>
+                                                <span className="inline-block px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs dark:bg-purple-900 dark:text-purple-200">
+                                                    需特別關懷
                                                 </span>
                                             </div>
-                                        )}
+
+                                            {/* Details Section */}
+                                            <div className="bg-gray-50 dark:bg-gray-700/50 rounded p-3 space-y-2 text-sm">
+                                                {member.careNote && (
+                                                    <div className="flex gap-2">
+                                                        <Heart className="w-4 h-4 text-pink-500 shrink-0 mt-0.5" />
+                                                        <span className="text-gray-700 dark:text-gray-300">
+                                                            {member.careDate?.toDate
+                                                                ? `${formatDate(member.careDate)}：${member.careNote}`
+                                                                : member.careNote}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            ))
+                                );
+                            })
                         ) : (
                             <div className="p-6 text-center text-gray-500">
                                 太棒了！目前沒有需要特別關心的成員 🎉
                             </div>
                         )}
                     </div>
+
+                    {/* Completed Care Section */}
+                    {completedCareList.length > 0 && (
+                        <div className="border-t dark:border-gray-700">
+                            <button
+                                onClick={() => setShowCompletedCare((v) => !v)}
+                                className="w-full p-4 flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <CheckCircle2 className="w-4 h-4 text-green-500" />
+                                    <span>已完成關懷（{completedCareList.length} 筆）</span>
+                                </div>
+                                {showCompletedCare ? (
+                                    <ChevronUp className="w-4 h-4" />
+                                ) : (
+                                    <ChevronDown className="w-4 h-4" />
+                                )}
+                            </button>
+
+                            {showCompletedCare && (
+                                <div className="divide-y dark:divide-gray-700">
+                                    {(completedCareList as any[]).map((member) => (
+                                        <div
+                                            key={member.memberId}
+                                            className="p-4 flex gap-3 opacity-60"
+                                        >
+                                            {/* Completed checkbox */}
+                                            <button
+                                                onClick={() => handleUncompleteCare(member.meetingId, member.memberId)}
+                                                className="mt-1 shrink-0 text-green-500 hover:text-gray-400 transition-colors"
+                                                title="撤銷完成"
+                                            >
+                                                <CheckCircle2 className="w-6 h-6" />
+                                            </button>
+
+                                            {/* Content */}
+                                            <div className="flex-1 flex flex-col gap-2">
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <div className="font-medium text-gray-500 dark:text-gray-400 line-through text-lg">
+                                                            {member.memberName}
+                                                        </div>
+                                                        <div className="text-xs text-gray-400">
+                                                            完成於{" "}
+                                                            {member.careCompletedAt?.toDate
+                                                                ? formatDate(member.careCompletedAt)
+                                                                : ""}
+                                                            {member.careCompletedBy ? `（${member.careCompletedBy}）` : ""}
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleUncompleteCare(member.meetingId, member.memberId)}
+                                                        className="flex items-center gap-1 text-xs text-gray-400 hover:text-blue-500 transition-colors px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                                                    >
+                                                        <RotateCcw className="w-3 h-3" />
+                                                        撤銷
+                                                    </button>
+                                                </div>
+                                                <div className="text-sm text-gray-400 line-through">
+                                                    {member.careDate?.toDate
+                                                        ? `${formatDate(member.careDate)}：${member.careNote}`
+                                                        : member.careNote}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             )}
         </div>

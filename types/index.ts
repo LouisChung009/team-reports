@@ -18,6 +18,8 @@ export interface AttendanceRecord {
     present: boolean;
     prayerRequest?: string;
     careNote?: string;
+    careCompletedAt?: Date;
+    careCompletedBy?: string;
 }
 
 export interface NewVisitor {
