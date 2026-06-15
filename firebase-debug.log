@@ -1,0 +1,61 @@
+[debug] [2026-06-14T06:56:17.571Z] ----------------------------------------------------------------------
+[debug] [2026-06-14T06:56:17.574Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\LOUISCHUNG\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only hosting
+[debug] [2026-06-14T06:56:17.574Z] CLI Version:   14.27.0
+[debug] [2026-06-14T06:56:17.575Z] Platform:      win32
+[debug] [2026-06-14T06:56:17.575Z] Node Version:  v24.11.1
+[debug] [2026-06-14T06:56:17.575Z] Time:          Sun Jun 14 2026 14:56:17 GMT+0800 (台北標準時間)
+[debug] [2026-06-14T06:56:17.575Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-06-14T06:56:17.789Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-06-14T06:56:17.789Z] > authorizing via signed-in user (be463977@gmail.com)
+[debug] [2026-06-14T06:56:17.789Z] [iam] checking project team-reports-15602 for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2026-06-14T06:56:17.790Z] Checked if tokens are valid: false, expires at: 1781400146332
+[debug] [2026-06-14T06:56:17.791Z] Checked if tokens are valid: false, expires at: 1781400146332
+[debug] [2026-06-14T06:56:17.791Z] > refreshing access token with scopes: []
+[debug] [2026-06-14T06:56:17.793Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-06-14T06:56:17.793Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-06-14T06:56:17.915Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-06-14T06:56:17.915Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-06-14T06:56:17.929Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/team-reports-15602:testIamPermissions [none]
+[debug] [2026-06-14T06:56:17.929Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/team-reports-15602:testIamPermissions x-goog-quota-user=projects/team-reports-15602
+[debug] [2026-06-14T06:56:17.930Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/team-reports-15602:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-06-14T06:56:18.743Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/team-reports-15602:testIamPermissions 200
+[debug] [2026-06-14T06:56:18.744Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/team-reports-15602:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-06-14T06:56:18.745Z] Checked if tokens are valid: true, expires at: 1781423776915
+[debug] [2026-06-14T06:56:18.745Z] Checked if tokens are valid: true, expires at: 1781423776915
+[debug] [2026-06-14T06:56:18.745Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/team-reports-15602 [none]
+[debug] [2026-06-14T06:56:19.068Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/team-reports-15602 200
+[debug] [2026-06-14T06:56:19.068Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/team-reports-15602 {"projectId":"team-reports-15602","projectNumber":"588429059352","displayName":"Team reports","name":"projects/team-reports-15602","resources":{"hostingSite":"team-reports-15602"},"state":"ACTIVE","etag":"1_606db4e4-3dec-436d-8f8e-09301ae2ae71"}
+[debug] [2026-06-14T06:56:20.596Z] Checked if tokens are valid: true, expires at: 1781423776915
+[debug] [2026-06-14T06:56:20.596Z] Checked if tokens are valid: true, expires at: 1781423776915
+[debug] [2026-06-14T06:56:20.596Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/team-reports-15602/sites pageToken=&pageSize=10
+[debug] [2026-06-14T06:56:21.333Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/team-reports-15602/sites 200
+[debug] [2026-06-14T06:56:21.334Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/team-reports-15602/sites {"sites":[{"name":"projects/team-reports-15602/sites/team-reports-15602","defaultUrl":"https://team-reports-15602.web.app","type":"DEFAULT_SITE"},{"name":"projects/team-reports-15602/sites/team-reports-15602-543bf","defaultUrl":"https://team-reports-15602-543bf.web.app","appId":"1:588429059352:web:7d019695ca963c068c2a6d","type":"USER_SITE"}]}
+[debug] [2026-06-14T06:56:21.334Z] Checked if tokens are valid: true, expires at: 1781423776915
+[debug] [2026-06-14T06:56:21.334Z] Checked if tokens are valid: true, expires at: 1781423776915
+[debug] [2026-06-14T06:56:21.334Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/team-reports-15602/sites 
+[debug] [2026-06-14T06:56:21.974Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/team-reports-15602/sites 200
+[debug] [2026-06-14T06:56:21.974Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/team-reports-15602/sites {"sites":[{"name":"projects/team-reports-15602/sites/team-reports-15602","defaultUrl":"https://team-reports-15602.web.app","type":"DEFAULT_SITE"},{"name":"projects/team-reports-15602/sites/team-reports-15602-543bf","defaultUrl":"https://team-reports-15602-543bf.web.app","appId":"1:588429059352:web:7d019695ca963c068c2a6d","type":"USER_SITE"}]}
+[debug] [2026-06-14T06:56:21.974Z] Checked if tokens are valid: true, expires at: 1781423776915
+[debug] [2026-06-14T06:56:21.975Z] Checked if tokens are valid: true, expires at: 1781423776915
+[debug] [2026-06-14T06:56:21.975Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/team-reports-15602/webApps/-/config [none]
+[debug] [2026-06-14T06:56:22.671Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/team-reports-15602/webApps/-/config 200
+[debug] [2026-06-14T06:56:22.671Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/team-reports-15602/webApps/-/config {"projectId":"team-reports-15602","appId":"1:588429059352:web:7d019695ca963c068c2a6d","storageBucket":"team-reports-15602.firebasestorage.app","apiKey":"AIzaSyC6S2x4N1qAGuEGn0XlxsdRnaA4CdTv_rc","authDomain":"team-reports-15602.firebaseapp.com","messagingSenderId":"588429059352","measurementId":"G-VK5YM21WLW","projectNumber":"588429059352","version":"2"}
+[info] 
+   Thank you for trying our early preview of Next.js support on Firebase Hosting.
+   During the preview, support is best-effort and breaking changes can be expected. Proceed with caution.
+   The integration is known to work with Next.js version 12 - 15.0. You may encounter errors.
+
+   Documentation: https://firebase.google.com/docs/hosting/frameworks/nextjs
+   File a bug: https://github.com/firebase/firebase-tools/issues/new?template=bug_report.md
+   Submit a feature request: https://github.com/firebase/firebase-tools/issues/new?template=feature_request.md
+
+   We'd love to learn from you. Express your interest in helping us shape the future of Firebase Hosting: https://goo.gle/41enW5X
+
+[debug] [2026-06-14T06:56:26.206Z] Checked if tokens are valid: true, expires at: 1781423776915
+[debug] [2026-06-14T06:56:26.206Z] Checked if tokens are valid: true, expires at: 1781423776915
+[debug] [2026-06-14T06:56:26.206Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/team-reports-15602/sites/team-reports-15602 [none]
+[debug] [2026-06-14T06:56:26.803Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/team-reports-15602/sites/team-reports-15602 200
+[debug] [2026-06-14T06:56:26.803Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/team-reports-15602/sites/team-reports-15602 {"name":"projects/team-reports-15602/sites/team-reports-15602","defaultUrl":"https://team-reports-15602.web.app","type":"DEFAULT_SITE"}
+[info] [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+
